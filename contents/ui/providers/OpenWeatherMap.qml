@@ -386,8 +386,8 @@ dbgprint2("***************************************************")
         dbgprint("DATETO\t" + obj.to + "\t\t" + dateTo  + "\t\t" +  dateTo.toUTCString())
         dbgprint(dateTo + "\t\t" + new Date(dateTo).getTime()  + "\t\t" + firstFromMs  + "\t\t" + (new Date(dateTo).getTime() - firstFromMs)  + "\t\t" + limitMsDifference )
         // dbgprint("dateFrom = " + dateFrom.toUTCString()  + "\tSunrise = " + sunrise1.toUTCString() + "\tSunset = " + sunset1.toUTCString() + "\t" + (isDaytime ? "isDay" : "isNight"))
-            if (obj.precipitation !== 0) {
-                var prec = obj.precipitation
+            if (obj.precipitation && obj.precipitation !== "no" && obj.precipitation !== 0) {
+                var prec = parseFloat(obj.precipitation) || 1
             } else {
                 var prec = 0
             }
@@ -619,7 +619,7 @@ dbgprint2("***************************************************")
         XmlListModelRole { name: "windDirection"; elementName: "windDirection"; attributeName: "deg"  }
         XmlListModelRole { name: "windSpeedMps"; elementName: "windSpeed"; attributeName: "mps"  }
         XmlListModelRole { name: "pressureHpa"; elementName: "pressure"; attributeName: "value"  }
-        XmlListModelRole { name: "precipitation"; elementName: "precipitation"; attributeName: "value"  }
+        XmlListModelRole { name: "precipitation"; elementName: "precipitation"; attributeName: "mode"  }
         // XmlListModelRole { name: "precipitationChance"; elementName: "precipitation"; attributeName: "probability"  }
 
         function get(i) {
