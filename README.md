@@ -46,7 +46,7 @@ Clone directly into your user plasmoids directory:
 
 ```bash
 mkdir -p ~/.local/share/plasma/plasmoids/
-git clone https://github.com/PlasmaDrifter/weather-transp.git ~/.local/share/plasma/plasmoids/local.widget.weather-transp
+git clone https://github.com/PlasmaDrifter/Widget-weather-transp.git ~/.local/share/plasma/plasmoids/local.widget.weather-transp
 ```
 
 ### Option 2: Plasma Package Installer
