@@ -6,7 +6,7 @@
 [![License: GPL v2](https://img.shields.io/badge/License-GPLv2-blue.svg?style=for-the-badge)](LICENSE)
 
 > [!NOTE]
-> **Community Hub:** Have questions, custom configs, or feature ideas? Join our subreddit community at [**r/PlasmaDrifterProjects**](https://reddit.com/r/PlasmaDrifterProjects)!
+> **Questions, custom configs, or ideas?** Join us on Reddit at <nobr>[**r/PlasmaDrifterProjects**](https://reddit.com/r/PlasmaDrifterProjects)</nobr>!
 
 A clean, transparent-background KDE Plasma 6 weather widget displaying current conditions, hourly/daily forecasts, and graphical meteograms. Built as a customized fork of [Weather Widget Plus](https://github.com/tully-t/weather-widget-plus), designed to blend seamlessly into any desktop wallpaper, panel, or widget container without opaque card backgrounds.
 
