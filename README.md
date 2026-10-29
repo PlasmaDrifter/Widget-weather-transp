@@ -63,6 +63,28 @@ After installation:
 
 ---
 
+## Updating
+
+### Option 1: Git Pull
+```bash
+cd ~/.local/share/plasma/plasmoids/local.widget.weather-transp
+git pull
+```
+
+### Option 2: Plasma Package Tool
+If updating from a downloaded `.plasmoid` package file:
+```bash
+kpackagetool6 -t Plasma/Applet -u local.widget.weather-transp.plasmoid
+```
+
+To reload changes immediately in KDE Plasma 6:
+```bash
+systemctl --user restart plasma-plasmashell.service
+```
+*(Or log out and log back in)*
+
+---
+
 ## Configuration Options
 
 Right-click the widget $\rightarrow$ **Configure Weather Widget Plus Trans…**
