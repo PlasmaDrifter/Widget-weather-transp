@@ -391,7 +391,7 @@ KCM.SimpleKCM {
                                 MouseArea {
                                     anchors.fill: parent
                                     onClicked: {
-                                        if (row < placesModel.rowCount) {
+                                        if (row < placesModel.rowCount - 1) {
                                             placesModel.moveRow(row, row + 1, 1)
                                             placesModelChanged()
                                         }
@@ -783,8 +783,12 @@ KCM.SimpleKCM {
         standardButtons: Dialog.Ok | Dialog.Cancel
 
         onAccepted: {
-            placesModel.setProperty(changePlaceAliasDialog.tableIndex, 'placeAlias', newPlaceAliasField.text)
-            placesModelChanged()
+            var rowData = placesModel.getRow(changePlaceAliasDialog.tableIndex)
+            if (rowData) {
+                rowData.placeAlias = newPlaceAliasField.text
+                placesModel.setRow(changePlaceAliasDialog.tableIndex, rowData)
+                placesModelChanged()
+            }
             changePlaceAliasDialog.close()
         }
 

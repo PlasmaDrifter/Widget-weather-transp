@@ -62,22 +62,6 @@ GridLayout {
     rows: (layoutType === 1) ? 2 : 1
     columns: (layoutType === 1) ? 1 : 2
 
-    function reLayout() {
-        temperatureText.anchors.left = [compactWeatherIcon.left, compactItem.left, undefined][layoutType]
-        temperatureText.anchors.right = [compactItem.right, compactItem.right, compactItem.right][layoutType]
-        temperatureText.anchors.top = [compactItem.top, undefined, temperatureText.top][layoutType]
-        temperatureText.anchors.bottom = [compactItem.bottom, compactItem.bottom, compactItem.bottom][layoutType]
-
-        compactWeatherIcon.anchors.left = [compactItem.left, compactItem.left, compactItem.left][layoutType]
-        compactWeatherIcon.anchors.right = [undefined, compactItem.right, compactItem.right][layoutType]
-        compactWeatherIcon.anchors.top = [compactItem.top, compactItem.top, compactItem.top][layoutType]
-        compactWeatherIcon.anchors.bottom = [compactItem.bottom, compactWeatherIcon.bottom, compactItem.bottom][layoutType]
-    }
-
-    onLayoutTypeChanged: {
-        reLayout()
-    }
-
     Item {
         // Otherwise it takes up too much space while loading
         visible: temperatureText.text.length > 0

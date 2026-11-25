@@ -75,6 +75,7 @@ function fetchXmlFromInternet(getUrl, successCallback, failureCallback) {
         var xmlString = xhr.responseText
         if (!DataLoader.isXmlStringValid(xmlString)) {
             dbgprint('incoming xmlString is not valid: ' + xmlString)
+            failureCallback()
             return
         }
         dbgprint('incoming text seems to be valid')
@@ -111,20 +112,19 @@ function fetchJsonFromInternet(getUrl, successCallback, failureCallback) {
         failureCallback()
     }
 
-    xhr.onload =  (event) => {
-        dbgprint('status: ' + xhr.status)
-        // dbgprint('responseText: ' + xhr.responseText)
-    };
-
     // success
     xhr.onload = () => {
-        dbgprint('successfully loaded from the internet')
-        dbgprint('successfully of url-call: ' + getUrl)
-        // dbgprint('responseText: ' + xhr.responseText)
+        dbgprint('status: ' + xhr.status)
+        if (xhr.status !== 200) {
+            dbgprint('ERROR - HTTP status: ' + xhr.status)
+            failureCallback()
+            return
+        }
 
         var jsonString = xhr.responseText
         if (!DataLoader.isJsonString(jsonString)) {
             dbgprint('incoming jsonString is not valid: ' + jsonString)
+            failureCallback()
             return
         }
         dbgprint('incoming text seems to be valid')

@@ -34,50 +34,6 @@ PlasmoidItem {
 
     Plasmoid.backgroundHints: PlasmaCore.Types.NoBackground
 
-    property real sharedOpacity: 0.3
-
-    Plasma5Support.DataSource {
-        id: executableDataSource
-        engine: "executable"
-        connectedSources: []
-        onNewData: (sourceName, data) => {
-            disconnectSource(sourceName)
-            if (sourceName.indexOf("plasma-custom-opacity.txt") !== -1) {
-                var stdout = data["stdout"] || "";
-                var val = parseFloat(stdout.trim());
-                if (!isNaN(val) && val >= 0.0 && val <= 1.0) {
-                    if (main.sharedOpacity !== val) {
-                        main.sharedOpacity = val;
-                    }
-                    if (plasmoid.configuration.bgOpacity !== val) {
-                        plasmoid.configuration.bgOpacity = val;
-                    }
-                }
-            }
-        }
-    }
-
-    Connections {
-        target: plasmoid.configuration
-        function onBgOpacityChanged() {
-            var newOpacity = plasmoid.configuration.bgOpacity;
-            if (Math.abs(main.sharedOpacity - newOpacity) > 0.01) {
-                executableDataSource.connectSource("echo " + newOpacity + " > /home/jmc/.config/plasma-custom-opacity.txt");
-            }
-        }
-    }
-
-    Timer {
-        id: sharedOpacityTimer
-        interval: 30000
-        running: true
-        repeat: true
-        triggeredOnStart: true
-        onTriggered: {
-            executableDataSource.connectSource("cat /home/jmc/.config/plasma-custom-opacity.txt");
-        }
-    }
-
     /* Includes */
     WeatherCache {
         id: weatherCache
@@ -227,12 +183,12 @@ PlasmoidItem {
 
     onPlacesStrChanged: {
         let places = ConfigUtils.getPlacesArray()
+        if (places.length === 0) return
         let placesCount = places.length - 1
-        let i = Math.min(plasmoid.configuration.placeIndex, placesCount)
-        if (currentPlace != places[i].placeAlias) {
+        let i = Math.min(Math.max(0, plasmoid.configuration.placeIndex), placesCount)
+        if (currentPlace.alias !== places[i].placeAlias || currentPlace.identifier !== places[i].placeIdentifier) {
             setNextPlace(true)
         }
-
     }
 
     function dbgprint(msg) {
@@ -413,9 +369,13 @@ PlasmoidItem {
     }
     function reloadDataFailureCallback() {
         dbgprint("Failed to Load Data successfully")
-        cacheData.loadingDatainProgress = false
-        dbgprint("Error getting weather data. Scheduling data reload...")
-        loadingData.nextReload = dateNow()
+        loadingData.loadingDatainProgress = false
+        loadingData.loadingError = true
+        loadingData.failedAttemptCount++
+        let retrySec = Math.min(loadingData.failedAttemptCount, 30) * 30
+        dbgprint("Error getting weather data. Retrying in " + retrySec + "s...")
+        loadingData.nextReload = dateNow() + (retrySec * 1000)
+        currentPlace.nextReload = loadingData.nextReload
         loadFromCache()
     }
     function updateLastReloadedText() {
@@ -431,13 +391,14 @@ PlasmoidItem {
         dbgprint(JSON.stringify(currentWeatherModel))
         let icon = currentWeatherModel.iconName
         iconNameStr = (icon > 0) ? IconTools.getIconCode(icon, currentPlace.providerId, currentWeatherModel.isDay) : '\uf07b'
-        temperatureStr = currentWeatherModel.temperature !== 9999 ? UnitUtils.getTemperatureNumberExt(currentWeatherModel.temperature, temperatureType) : '--'
+        var temp = Number(currentWeatherModel.temperature)
+        temperatureStr = (currentWeatherModel.temperature !== -9999 && !isNaN(temp)) ? UnitUtils.getTemperatureNumberExt(temp, temperatureType) : '--'
     }
 
     function refreshTooltipSubText() {
         // dbgprint(JSON.stringify(currentWeatherModel))
         dbgprint2("refreshTooltipSubText")
-        if (currentWeatherModel === undefined || currentWeatherModel.nearFutureWeather.iconName === null || currentWeatherModel.count === 0) {
+        if (currentWeatherModel === undefined || !currentWeatherModel.nearFutureWeather || currentWeatherModel.nearFutureWeather.iconName === null || currentWeatherModel.temperature === -9999) {
             dbgprint("model not yet ready")
             return
         }
@@ -561,12 +522,8 @@ PlasmoidItem {
     onTimezoneTypeChanged: {
         if (currentPlace.identifier !== "") {
             dbgprint2('timezoneType changed')
-            cacheData.cacheKey = DataLoader.generateCacheKey(currentPlace.identifier)
-            currentPlace.cacheID = DataLoader.generateCacheKey(currentPlace.identifier)
-            dbgprint("cacheKey for " + currentPlace.identifier + " is: " + currentPlace.cacheID)
-            cacheData.alreadyLoadedFromCache = false
-            loadDataFromInternet()
-            meteogramModelChanged = ! meteogramModelChanged
+            meteogramModelChanged = !meteogramModelChanged
+            refreshTooltipSubText()
         }
     }
 
@@ -586,14 +543,17 @@ PlasmoidItem {
         currentPlace = JSON.parse(cacheData.cacheMap[cacheData.cacheKey][1])
         currentPlace.provider = setCurrentProviderAccordingId(currentPlace.providerId)
 
-        // for(const [key,value] of Object.entries(currentPlace)) { console.log(`  ${key}: ${value}`) }
-
         currentWeatherModel = cacheData.cacheMap[cacheData.cacheKey][2]
-        // dbgprint("currentPlace:\t"  + currentPlace.alias + "\t" + currentPlace.identifier + "\t" + currentPlace.timezoneID + "\t" + currentPlace.timezoneShortName + "\t")
-        // dbgprint(JSON.stringify(currentWeatherModel))
-        let meteogramModelData = JSON.parse( cacheData.cacheMap[cacheData.cacheKey][3])
-        let nextDaysModelData = JSON.parse( cacheData.cacheMap[cacheData.cacheKey][4])
-        // dbgprint(cacheData.cacheMap[cacheData.cacheKey][4])
+        if (currentWeatherModel) {
+            if (typeof currentWeatherModel.sunRise === "string") {
+                currentWeatherModel.sunRise = new Date(Date.parse(currentWeatherModel.sunRise))
+            }
+            if (typeof currentWeatherModel.sunSet === "string") {
+                currentWeatherModel.sunSet = new Date(Date.parse(currentWeatherModel.sunSet))
+            }
+        }
+        let meteogramModelData = JSON.parse(cacheData.cacheMap[cacheData.cacheKey][3])
+        let nextDaysModelData = JSON.parse(cacheData.cacheMap[cacheData.cacheKey][4])
         meteogramModel.clear()
         for (var i = 0; i < meteogramModelData.length; ++i) {
             meteogramModelData[i]['from'] = new Date(Date.parse(meteogramModelData[i]['from']))
@@ -603,12 +563,11 @@ PlasmoidItem {
 
         nextDaysModel.clear()
         for (var i = 0; i < nextDaysModelData.length; ++i) {
-            // meteogramModelData[i]['from'] = new Date(Date.parse(meteogramModelData[i]['from']))
-            // meteogramModelData[i]['to'] = new Date(Date.parse(meteogramModelData[i]['to']))
             nextDaysModel.append(nextDaysModelData[i])
         }
         dbgprint(nextDaysModelData.length)
         nextDaysCount = nextDaysModel.count
+        cacheData.alreadyLoadedFromCache = true
 
         updateCompactItem()
         refreshTooltipSubText()
@@ -623,23 +582,22 @@ PlasmoidItem {
         dbgprint(currentPlace.alias)
         let cacheID = currentPlace.cacheID
 
-
-        var meteogramModelData = ([])
+        var meteogramModelData = []
         for (var i = 0; i < meteogramModel.count; ++i) {
             meteogramModelData.push(meteogramModel.get(i))
         }
 
-        var nextDayModelData = ([])
+        var nextDayModelData = []
         for (i = 0; i < nextDaysModel.count; ++i) {
-            // dbgprint(JSON.stringify(nextDaysModel.get(i)))
             nextDayModelData.push(nextDaysModel.get(i))
         }
-        currentPlace.provider = ""
-        // for(const [key,value] of Object.entries(currentPlace)) { console.log(`  ${key}: ${value}`) }
 
-        let contentToCache = {1: JSON.stringify(currentPlace), 2: currentWeatherModel, 3: JSON.stringify(meteogramModelData), 4: JSON.stringify(nextDayModelData)}
-        print("saving cacheKey = " + cacheID)
+        var placeSnapshot = Object.assign({}, currentPlace)
+        placeSnapshot.provider = ""
+
+        let contentToCache = {1: JSON.stringify(placeSnapshot), 2: currentWeatherModel, 3: JSON.stringify(meteogramModelData), 4: JSON.stringify(nextDayModelData)}
         cacheData.cacheMap[cacheID] = contentToCache
+        weatherCache.writeCache(JSON.stringify(cacheData.cacheMap))
     }
 
 

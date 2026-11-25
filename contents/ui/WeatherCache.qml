@@ -14,52 +14,47 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http: //www.gnu.org/licenses/>.
  */
-import QtQuick 2.2
-import org.kde.plasma.plasmoid
+import QtQuick
+import QtQuick.LocalStorage
 
 Item {
     id: weatherCache
 
     property var cacheId
-    property var cacheBackend: null
-    property bool cacheBackendFailedToInitialize: false
 
-    function getCacheBackend() {
-        if (cacheBackend !== null) {
-            return cacheBackend
-        }
-        if (!cacheBackendFailedToInitialize) {
-            dbgprint('initializing cacheBackend...')
-            try {
-                cacheBackend = Qt.createQmlObject('import org.kde.private.weatherWidget 2.0 as WW; WW.Backend {}', weatherCache, 'cacheBackend')
-            } catch (e) {
-                print('cacheBackend failed to initialize')
-                cacheBackendFailedToInitialize = true
-            }
-            dbgprint('initializing cacheBackend...DONE ' + cacheBackend)
-        }
-        return cacheBackend
+    function openDb() {
+        return LocalStorage.openDatabaseSync("weather_transp_cache", "1.0", "Weather Widget Cache", 2000000)
     }
 
     function writeCache(cacheContent) {
         dbgprint('writing cache')
-        var backend = getCacheBackend()
-        if (backend) {
-            backend.writeCache(cacheContent, cacheId)
-        } else {
-            dbgprint('cacheBackend N/A')
+        try {
+            var db = openDb()
+            db.transaction(function(tx) {
+                tx.executeSql('CREATE TABLE IF NOT EXISTS cache(id TEXT PRIMARY KEY, content TEXT)')
+                tx.executeSql('INSERT OR REPLACE INTO cache(id, content) VALUES (?, ?)', [String(cacheId || 'default'), String(cacheContent || '{}')])
+            })
+        } catch (e) {
+            dbgprint('writeCache failed: ' + e)
         }
     }
 
     function readCache() {
         dbgprint('reading cache')
-        var backend = getCacheBackend()
-        if (backend) {
-            return backend.readCache(cacheId)
-        } else {
-            dbgprint('cacheBackend N/A')
-            return ''
+        var content = ''
+        try {
+            var db = openDb()
+            db.transaction(function(tx) {
+                tx.executeSql('CREATE TABLE IF NOT EXISTS cache(id TEXT PRIMARY KEY, content TEXT)')
+                var rs = tx.executeSql('SELECT content FROM cache WHERE id = ?', [String(cacheId || 'default')])
+                if (rs.rows.length > 0) {
+                    content = rs.rows.item(0).content || ''
+                }
+            })
+        } catch (e) {
+            dbgprint('readCache failed: ' + e)
         }
+        return content
     }
 
 }

@@ -13,7 +13,7 @@ KCM.SimpleKCM {
     property string cfg_widgetFontName: plasmoid.configuration.widgetFontName
     property string cfg_widgetFontSize: plasmoid.configuration.widgetFontSize
     property string cfg_widgetIconSize: plasmoid.configuration.widgetIconSize
-    property string cfg_textColor: plasmoid.configuration.backgroundColor
+    property string cfg_textColor: plasmoid.configuration.textColor
 
     property alias cfg_textVisible: textVisible.checked
     property alias cfg_iconVisible: iconVisible.checked

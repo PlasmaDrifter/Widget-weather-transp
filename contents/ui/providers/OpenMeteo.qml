@@ -51,7 +51,7 @@ Item {
             weatherURL = Qt.resolvedUrl('../../code/weather/weather.json')
         }
         dbgprint("Downloading Weather Data from: " + weatherURL)
-        var xhr1 = DataLoader.fetchJsonFromInternet(weatherURL, successWeather, failureCallback)
+        var xhr1 = DataLoader.fetchJsonFromInternet(weatherURL, successWeather, onFetchFailed)
         return [xhr1]
 
         function successWeather(jsonString) {
@@ -393,11 +393,11 @@ Item {
             return Qt.locale().dayName(date.getDay(), Locale.ShortFormat) + ' ' + date.getDate() + '/' + (date.getMonth() + 1)
         }
 
-        function failureCallback() {
+        function onFetchFailed() {
             dbgprint("DOH!")
             currentWeatherModel = emptyWeatherModel()
-            // loadingData.loadingDatainProgress=false
             main.loadingDataComplete = true
+            if (failureCallback) failureCallback()
         }
 
         function loadCompleted() {

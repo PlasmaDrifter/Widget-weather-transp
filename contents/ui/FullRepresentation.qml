@@ -42,7 +42,7 @@ Item {
     property int nextDaysHeight: defaultFontPixelSize * 9
     property int nextDaysVerticalMargin: defaultFontPixelSize
     property int hourLegendMargin: defaultFontPixelSize * 2 + 2
-    property double nextDayItemWidth: (imageWidth / nextDaysCount) - nextDayItemSpacing - hourLegendMargin / nextDaysCount
+    property double nextDayItemWidth: nextDaysCount > 0 ? ((imageWidth / nextDaysCount) - nextDayItemSpacing - hourLegendMargin / nextDaysCount) : 0
     property int headingHeight: defaultFontPixelSize * 2
     property double hourLegendBottomMargin: defaultFontPixelSize * 0.2
     property string fullRepresentationAlias: main.fullRepresentationAlias

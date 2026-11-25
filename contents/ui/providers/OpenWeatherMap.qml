@@ -31,6 +31,8 @@ Item {
     property int xmlModelLongTermStatus: xmlModelLongTerm.status
     property int xmlModelHourByHourStatus: xmlModelHourByHour.status
     property bool xmlModelComplete: (xmlModelCurrent.status === XmlListModel.Ready) && (xmlModelHourByHour.status === XmlListModel.Ready) && (xmlModelLongTerm.status  === XmlListModel.Ready)
+    property var currentFailureCallback: null
+    property bool failedForCurrentLoad: false
 
     onXmlModelCompleteChanged: {
         if (xmlModelComplete == false) {
@@ -43,6 +45,14 @@ Item {
         loadCompleted()
     }
 
+    function reportXmlError(err) {
+        dbgprint(err)
+        if (!failedForCurrentLoad && currentFailureCallback) {
+            failedForCurrentLoad = true
+            currentFailureCallback()
+        }
+    }
+
     function parseISOString(s) {
         var b = s.split(/\D+/)
         return new Date(Date.UTC(b[0], --b[1], b[2], b[3], b[4], b[5], b[6]))
@@ -50,6 +60,8 @@ Item {
 
     function loadDataFromInternet(successCallback, failureCallback, locationObject) {
         dbgprint2("OWM loadDataFromInternet")
+        owm.currentFailureCallback = failureCallback
+        owm.failedForCurrentLoad = false
         var loadedData = {
             current: null,
             hourByHour: null,
@@ -226,7 +238,7 @@ dbgprint("main.timezoneType= " + timezoneType + "\t= " + offset)
                     nextDaysData['dayTitle'] =  composeNextDayTitle(dataTime)
                                 dataTime.setDate(dataTime.getDate() + 1)
 
-                        nextDaysData['temperature3'] = parseInt(obj.temperatureEvening)
+                        nextDaysData['temperature3'] = parseInt(obj.temperatureNight)
                         nextDaysData['iconName3'] = obj.iconName
                         dbgprint("Added data for Row " + (x + 1) + " Column " + (y + 1))
                         nextDaysData['hidden3'] = false
@@ -370,18 +382,20 @@ dbgprint2("***************************************************")
 
         var dateFrom = now
         var dateTo = now
-        var sunrise1 = (currentWeatherModel.sunRise)
-        var sunset1 = (currentWeatherModel.sunSet)
-        var isDaytime = (dateFrom > sunrise1) && (dateFrom < sunset1)
-
+        var sunriseMs = currentWeatherModel.sunRise ? currentWeatherModel.sunRise.getTime() : 0
+        var sunsetMs = currentWeatherModel.sunSet ? currentWeatherModel.sunSet.getTime() : 0
+        var dayMidMs = (sunriseMs + sunsetMs) / 2
+        var dayMs = 86400000
 
         for (var i = 0; i < xmlModelHourByHour.count; i++) {
-        var obj = xmlModelHourByHour.get(i)
-        dateFrom = new Date(convertToLocalTime(xmlModelHourByHour.get(i).from + "Z", offset))
-        dateTo = new Date(convertToLocalTime(xmlModelHourByHour.get(i).to + "Z", offset))
+            var obj = xmlModelHourByHour.get(i)
+            dateFrom = new Date(convertToLocalTime(xmlModelHourByHour.get(i).from + "Z", offset * 1000))
+            dateTo = new Date(convertToLocalTime(xmlModelHourByHour.get(i).to + "Z", offset * 1000))
             if (i === 0) {
                 var firstFromMs = dateFrom.getTime()
             }
+            var dayShift = dayMs * Math.round((dateFrom.getTime() - dayMidMs) / dayMs)
+            var isDaytime = (dateFrom.getTime() >= sunriseMs + dayShift) && (dateFrom.getTime() < sunsetMs + dayShift)
         dbgprint("DATEFROM\t" + obj.from + "\t\t" + dateFrom  + "\t\t" +  dateFrom.toUTCString())
         dbgprint("DATETO\t" + obj.to + "\t\t" + dateTo  + "\t\t" +  dateTo.toUTCString())
         dbgprint(dateTo + "\t\t" + new Date(dateTo).getTime()  + "\t\t" + firstFromMs  + "\t\t" + (new Date(dateTo).getTime() - firstFromMs)  + "\t\t" + limitMsDifference )
@@ -566,7 +580,7 @@ dbgprint2("***************************************************")
     }
     onXmlModelCurrentStatusChanged: {
         if (xmlModelCurrent.status == XmlListModel.Error) {
-            dbgprint(xmlModelCurrent.errorString())
+            reportXmlError(xmlModelCurrent.errorString())
         }
         if (xmlModelCurrent.status != XmlListModel.Ready) {
             return
@@ -600,7 +614,7 @@ dbgprint2("***************************************************")
     }
     onXmlModelLongTermStatusChanged: {
         if (xmlModelLongTerm.status == XmlListModel.Error) {
-            dbgprint(xmlModelLongTerm.errorString())
+            reportXmlError(xmlModelLongTerm.errorString())
         }
         if (xmlModelLongTerm.status != XmlListModel.Ready) {
             return
@@ -619,7 +633,7 @@ dbgprint2("***************************************************")
         XmlListModelRole { name: "windDirection"; elementName: "windDirection"; attributeName: "deg"  }
         XmlListModelRole { name: "windSpeedMps"; elementName: "windSpeed"; attributeName: "mps"  }
         XmlListModelRole { name: "pressureHpa"; elementName: "pressure"; attributeName: "value"  }
-        XmlListModelRole { name: "precipitation"; elementName: "precipitation"; attributeName: "mode"  }
+        XmlListModelRole { name: "precipitation"; elementName: "precipitation"; attributeName: "probability"  }
         // XmlListModelRole { name: "precipitationChance"; elementName: "precipitation"; attributeName: "probability"  }
 
         function get(i) {
@@ -634,7 +648,7 @@ dbgprint2("***************************************************")
     onXmlModelHourByHourStatusChanged: {
         dbgprint("xmlModelHourByHour: " + xmlModelHourByHour.status)
         if (xmlModelHourByHour.status == XmlListModel.Error) {
-            dbgprint(xmlModelHourByHour.errorString())
+            reportXmlError(xmlModelHourByHour.errorString())
         }
         if (xmlModelHourByHour.status != XmlListModel.Ready) {
             return

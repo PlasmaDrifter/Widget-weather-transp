@@ -82,7 +82,10 @@ Item {
     property int precipitationLabelMargin: 8
     // property bool precLabelVisible: counter > 0
 
-    property double sampleWidth: imageWidth / (meteogramModel.count - 1)
+    property double sampleWidth: imageWidth / Math.max(1, meteogramModel.count - 1)
+
+    property var dynamicTempCurves: []
+    property var dynamicPressCurves: []
 
     property int temperatureType: main.temperatureType
     property int timezoneType: main.timezoneType
@@ -90,59 +93,62 @@ Item {
     property int windSpeedType: main.windSpeedType
     property int precType: main.precType
 
-    onMeteogramModelChangedChanged: {
-        dbgprint2('METEOGRAM changed')
+    function rebuildMeteogramLocally() {
+        if (meteogramModel.count === 0) {
+            clearCanvas()
+            return
+        }
         buildMetogramData()
         processMeteogramData()
         buildCurves()
     }
 
+    onMeteogramModelChangedChanged: {
+        dbgprint2('METEOGRAM changed')
+        rebuildMeteogramLocally()
+    }
+
     onWidgetWidthChanged: {
         dbgprint2('WIDTH changed')
-        loadingData.failedAttemptCount = 0
-        main.loadDataFromInternet()
+        if (meteogramModel.count > 0) buildCurves()
     }
 
     onWidgetHeightChanged: {
-        dbgprint2('WIDTH changed')
-        loadingData.failedAttemptCount = 0
-        main.loadDataFromInternet()
+        dbgprint2('HEIGHT changed')
+        if (meteogramModel.count > 0) buildCurves()
     }
 
     onHourSpanOmChanged: {
         dbgprint2('Hour Span changed')
-        loadingData.failedAttemptCount = 0
-        main.loadDataFromInternet()
+        if (main.currentPlace.providerId === 'om' && main.currentPlace.identifier !== '') {
+            loadingData.failedAttemptCount = 0
+            main.loadDataFromInternet()
+        }
     }
 
     onTemperatureTypeChanged: {
         dbgprint2('TemperatureType changed')
-        loadingData.failedAttemptCount = 0
-        main.loadDataFromInternet()
+        rebuildMeteogramLocally()
     }
 
     onTimezoneTypeChanged: {
         dbgprint2('TimezoneType changed')
-        loadingData.failedAttemptCount = 0
-        main.loadDataFromInternet()
+        rebuildMeteogramLocally()
     }
 
     onPressureTypeChanged: {
         dbgprint2('PressureType changed')
-        loadingData.failedAttemptCount = 0
-        main.loadDataFromInternet()
+        rebuildMeteogramLocally()
     }
 
     onPrecTypeChanged: {
         dbgprint2('PrecType changed')
-        loadingData.failedAttemptCount = 0
-        main.loadDataFromInternet()
+        rebuildMeteogramLocally()
     }
 
     onWindSpeedTypeChanged: {
         dbgprint2('WindSpeedType changed')
-        loadingData.failedAttemptCount = 0
-        main.loadDataFromInternet()
+        rebuildMeteogramLocally()
     }
 
 
@@ -692,12 +698,37 @@ Item {
 
     }
 
+    function destroyCurveObjects() {
+        for (var t = 0; t < dynamicTempCurves.length; t++) {
+            if (dynamicTempCurves[t]) dynamicTempCurves[t].destroy()
+        }
+        for (var p = 0; p < dynamicPressCurves.length; p++) {
+            if (dynamicPressCurves[p]) dynamicPressCurves[p].destroy()
+        }
+        dynamicTempCurves = []
+        dynamicPressCurves = []
+    }
+
+    function clearCanvas() {
+        temperaturePathWarm.pathElements = []
+        temperaturePathCold.pathElements = []
+        pressurePath.pathElements = []
+        destroyCurveObjects()
+        hourGridModel.clear()
+        repaintCanvas()
+    }
+
+    Component.onDestruction: {
+        destroyCurveObjects()
+    }
+
     function buildCurves() {
         dbgprint2("buildCurves")
         var newPathElements = []
         var newPressureElements = []
 
         if (meteogramModel.count === 0) {
+            clearCanvas()
             return
         }
         for (var i = 0; i < meteogramModel.count; i++) {
@@ -707,21 +738,33 @@ Item {
             var temperatureY = rawTempY * temperatureIncrementPixels
             var rawPressY = pressureSizeY - (dataObj.pressureHpa + pressureOffsetY)
             var pressureY = rawPressY * pressureMultiplierY
+            if (isNaN(temperatureY) || isNaN(pressureY)) continue
             if (i === 0) {
                 temperaturePathWarm.startY = temperatureY
                 temperaturePathCold.startY = temperatureY
                 pressurePath.startY = pressureY
             }
-            newPathElements.push(Qt.createQmlObject('import QtQuick 2.0; PathCurve { x: ' + (i * sampleWidth) + '; y: ' + temperatureY + ' }', graphArea, "dynamicTemperature" + i))
-            newPressureElements.push(Qt.createQmlObject('import QtQuick 2.0; PathCurve { x: ' + (i * sampleWidth) + '; y: ' + pressureY + ' }', graphArea, "dynamicPressure" + i))
+            newPathElements.push(Qt.createQmlObject('import QtQuick; PathCurve { x: ' + (i * sampleWidth) + '; y: ' + temperatureY + ' }', graphArea, "dynamicTemperature" + i))
+            newPressureElements.push(Qt.createQmlObject('import QtQuick; PathCurve { x: ' + (i * sampleWidth) + '; y: ' + pressureY + ' }', graphArea, "dynamicPressure" + i))
         }
+        var oldTemp = dynamicTempCurves
+        var oldPress = dynamicPressCurves
         temperaturePathWarm.pathElements = newPathElements
         temperaturePathCold.pathElements = newPathElements
         pressurePath.pathElements = newPressureElements
+        dynamicTempCurves = newPathElements
+        dynamicPressCurves = newPressureElements
+        for (var k = 0; k < oldTemp.length; k++) {
+            if (oldTemp[k]) oldTemp[k].destroy()
+        }
+        for (var m = 0; m < oldPress.length; m++) {
+            if (oldPress[m]) oldPress[m].destroy()
+        }
         repaintCanvas()
     }
 
     function processMeteogramData() {
+        verticalGridModel.clear()
         for (var i = 0; i <= temperatureYGridCount; i++) {
             verticalGridModel.append({ num: i })
         }

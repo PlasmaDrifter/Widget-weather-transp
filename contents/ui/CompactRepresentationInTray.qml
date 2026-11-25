@@ -25,10 +25,11 @@ Loader {
 
     property int defaultWidgetSize: -1
 
-    sourceComponent: compactIteminTray
+    sourceComponent: compactIteminTrayComponent
 
-    CompactIteminTray {
-        id: compactIteminTray
+    Component {
+        id: compactIteminTrayComponent
+        CompactIteminTray {}
     }
 
     MouseArea {
